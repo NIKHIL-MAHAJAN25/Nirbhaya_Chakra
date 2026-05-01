@@ -2,6 +2,7 @@ package com.example.nirbhaya_chakra
 
 import androidx.lifecycle.ViewModel
 import com.example.nirbhaya_chakra.Data.RiskData
+import com.example.nirbhaya_chakra.data.RiskRepository
 import kotlinx.coroutines.flow.StateFlow
 
 class RiskViewModel : ViewModel() {

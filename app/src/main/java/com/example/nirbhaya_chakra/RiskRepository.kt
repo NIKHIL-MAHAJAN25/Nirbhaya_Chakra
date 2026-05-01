@@ -1,6 +1,4 @@
-package com.example.nirbhaya_chakra
-
-
+package com.example.nirbhaya_chakra.data
 
 import com.example.nirbhaya_chakra.Data.RiskData
 import kotlinx.coroutines.flow.MutableStateFlow
