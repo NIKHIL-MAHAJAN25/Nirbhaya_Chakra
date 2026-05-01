@@ -1,3 +1,4 @@
+import java.util.Properties
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -19,10 +20,21 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        val apiKey = project.findProperty("GOOGLE_API_KEY") as String?
-        buildConfigField("String", "GOOGLE_API_KEY", "\"$apiKey\"")
 
-        manifestPlaceholders["GOOGLE_API_KEY"] = apiKey ?: ""
+
+        val properties = Properties()
+        val localPropertiesFile = rootProject.file("local.properties")
+
+        if (localPropertiesFile.exists()) {
+            properties.load(localPropertiesFile.inputStream())
+        }
+
+        val apiKey = properties.getProperty("GOOGLE_API_KEY")
+            ?: throw GradleException("GOOGLE_API_KEY missing in local.properties")
+
+        manifestPlaceholders["GOOGLE_API_KEY"] = apiKey
+
+
     }
     kotlinOptions {
         jvmTarget = "11"
