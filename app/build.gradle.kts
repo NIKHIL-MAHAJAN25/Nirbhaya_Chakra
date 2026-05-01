@@ -11,7 +11,16 @@ plugins {
 android {
     namespace = "com.example.nirbhaya_chakra"
     compileSdk = 36
-
+    packaging {
+        resources {
+            excludes += setOf(
+                "META-INF/*",
+                "META-INF/INDEX.LIST",
+                "META-INF/DEPENDENCIES",
+                "META-INF/io.netty.versions.properties"
+            )
+        }
+    }
     defaultConfig {
         applicationId = "com.example.nirbhaya_chakra"
         minSdk = 24
@@ -63,6 +72,8 @@ android {
 }
 
 dependencies {
+    implementation(libs.androidx.compose.runtime)
+    implementation(libs.firebase.appdistribution.gradle)
     ksp(libs.androidx.room.compiler)
     implementation(libs.androidx.activity.ktx)
     implementation(libs.androidx.appcompat)
@@ -75,7 +86,9 @@ dependencies {
     // -------------------
     // Compose (REQUIRED)
     // -------------------
-
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation(platform(libs.androidx.compose.bom))
     implementation("com.google.maps.android:maps-compose:4.3.0")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
