@@ -1,13 +1,24 @@
-Replace your CLAUDE.md with this — keeps the auto-generated stuff and adds everything we discussed:
+Here's the final clean CLAUDE.md — copy this entirely, replace your current file:
 markdown# CLAUDE.md
 
 This file provides guidance to Claude Code when working with code in this repository.
+
+---
 
 ## Project Vision
 
 **SafeCircle (Nirbhaya Chakra)** — predictive women's safety Android app for hackathon (Track 1: AI for Social Good). Demo city: Bangalore.
 
 Not just an SOS button — predicts danger before escalation using sensor fusion, route deviation, BLE follower detection, watch HR sync, and historical crime data.
+
+---
+
+## Project Setup
+
+- **Package:** `com.example.nirbhaya_chakra`
+- **Min SDK:** 24 | **Target/Compile SDK:** 36
+- **SDK path:** `D:\AndroidSDK`
+- **Kotlin:** 2.0.21 with KSP 2.0.21-1.0.25
 
 ## Build Commands
 
@@ -21,12 +32,7 @@ Not just an SOS button — predicts danger before escalation using sensor fusion
 ./gradlew connectedAndroidTest
 ```
 
-## Project Setup
-
-- **Package:** `com.example.nirbhaya_chakra`
-- **Min SDK:** 24 | **Target/Compile SDK:** 36
-- **SDK path:** `D:\AndroidSDK`
-- **Kotlin:** 2.0.21 with KSP 2.0.21-1.0.25
+---
 
 ## Architecture (MVVM + Compose)
 RiskForegroundService → RiskRepository (StateFlow) → RiskViewModel → HomeScreen (Compose)
@@ -38,6 +44,19 @@ RiskForegroundService → RiskRepository (StateFlow) → RiskViewModel → HomeS
 5. `HomeScreen` renders score, level, reasons, SOS button
 
 **Coding style:** One model per file in `Data/`. Utils as extension functions in `utils/`. Compose only, no XML.
+
+---
+
+## Code Style Rules
+
+- Always add inline comments for non-obvious logic
+- Every function gets a doc comment: purpose, params, return value
+- Mark incomplete sections with `// TODO: <description>`
+- Mark mock/demo placeholders with `// MOCK: <description>` so they're easy to find later
+- Prefer descriptive variable names over short ones (riskScore not rs)
+- Group imports: Android, AndroidX, third-party, project — separated by blank lines
+
+---
 
 ## Risk Score Formula (compute on phone)
 
@@ -54,17 +73,34 @@ Sum → cap at 100 → push to `RiskRepository`. Run every 10s in service.
 
 `Int.toRiskLevel()` in `utils/RiskCalculator.kt`: Safe (≤30) → Moderate (≤60) → High (≤75) → Critical.
 
-## Implementation Roadmap
-Add this as a new step in your CLAUDE.md:
-markdown### Step 0 — UI/UX Design System (Build First, Polish Throughout)
+## Score Thresholds & Actions
 
-The app must look **production-grade**, not a hackathon prototype. Judges judge what they see.
+| Score | Level | Action |
+|---|---|---|
+| 0-30 | Safe (Green) | Passive update only |
+| 31-60 | Moderate (Orange) | Watch haptic pulse, family sees amber |
+| 61-75 | High (Red) | Auto safe-route suggestion, family alerted |
+| 76-100 | Critical | Auto alert, police notified, SMS sent |
+| >85 for 60s | Persistent | Escalation: secondary contacts + supervisor |
+
+---
+
+## Implementation Roadmap
+
+### ✅ Step 1 — Foreground Service Architecture (DONE)
+Service runs, mock data updates every 2s, persistent notification, FOREGROUND_SERVICE permission set.
+
+---
+
+### Step 0 — UI/UX Design System (Build alongside everything)
+
+The app must look **production-grade**, not a hackathon prototype.
 
 #### Design Philosophy
 - Dark theme primary (stealth + battery + premium feel)
 - Bold, high-contrast typography
-- Smooth animations on state changes (risk score transitions)
-- Color psychology: green=safe, amber=caution, red=danger — felt instantly
+- Smooth animations on state changes
+- Color psychology: green=safe, amber=caution, red=danger
 
 #### Color Palette
 Background:    #0F0F1A (deep navy)
@@ -80,115 +116,49 @@ Text primary:  #E0E0E0
 Text muted:    #9E9E9E
 
 #### Typography
-- Use **Inter** or **Poppins** font (Google Fonts)
+- Inter or Poppins font (Google Fonts)
 - Risk score: 64sp Bold
 - Headers: 22sp Bold
 - Body: 14sp Regular
 - Labels: 11sp Medium uppercase, letter-spaced
 
 #### Screens to Build
+1. **Splash** — logo animated entry, 1.5s → auto navigate
+2. **Onboarding** — 3 slides, pager dots, Skip + Next
+3. **Login** — phone + OTP (BYPASS for demo, hardcode demo_user)
+4. **OTP** — 4-box input, auto-fill 1234 (BYPASS)
+5. **Home** — risk score circle, explainability card, map preview, SOS button
+6. **Trusted Circle** — contact cards, add FAB
+7. **Routes** — saved trips with map thumbnails
+8. **Alert Active** — full-screen red overlay, officer status, PIN cancel
+9. **Stealth Mode** — calculator disguise, hidden PIN unlock
 
-**1. Splash Screen**
-- App logo (shield with check) animated entry
-- "SafeCircle" wordmark
-- Subtle gradient background
-- 1.5s duration → auto navigate
+#### Compose Components
+- `RiskScoreCircle` — animated, color-changing, pulses if Critical
+- `ExplainabilityCard` — reasons with leading icons
+- `SOSButton` — large red, haptic, hold-to-confirm
+- `ContactCard`, `RouteCard`, `StatusBadge`, `BottomNavBar`
 
-**2. Onboarding (3 slides)**
-- Slide 1: "Predict before it escalates" + sensor icon
-- Slide 2: "Always-on, even offline" + BLE/mesh icon
-- Slide 3: "Your circle, alerted instantly" + people icon
-- Pager dots, Skip + Next buttons
-
-**3. Login Screen** (currently bypass — backend not ready)
-- Phone number input with country code
-- "Send OTP" button (mock — directly proceed)
-- Or "Continue as Guest" for demo
-- Hardcode user: `userId = "demo_user", name = "Priya"`
-- Comment: `// TODO: Wire to /api/auth/login when backend ready`
-
-**4. OTP Screen** (bypass — auto fill 1234)
-- 4 box OTP input
-- 30s resend timer
-- Auto-fill 1234 → success → home
-
-**5. Home Screen** (main dashboard)
-- Top: greeting + status badge
-- Center: huge animated risk score circle (pulses if Critical)
-- Below: explainability card with reasons (icons + text)
-- Map preview (small) showing current location
-- Bottom: 3 quick action buttons — Share Location, Trusted Circle, SOS
-- SOS button: large, bottom, red, haptic on press
-
-**6. Trusted Circle Screen**
-- List of contacts as cards
-- Add contact FAB
-- Each card: name, phone, "remove" + "call now"
-
-**7. Routes Screen**
-- "Your Routes" — list of learned trips
-- Each card: thumbnail map (Google Maps Static API), Home → College, "12 trips, 23 min avg"
-- Toggle: monitor this route
-
-**8. Alert Active Screen** (when SOS fires)
-- Full-screen red overlay with pulse animation
-- "ALERT SENT" big text
-- Live status: "Officer Rajesh responding • ETA 4 min"
-- Cancel button (requires PIN to prevent attacker dismissal)
-- Auto-records location every 5s shown as growing line on mini-map
-
-**9. Stealth Mode Screen** (calculator disguise)
-- Looks like a real calculator
-- Hidden trigger: enter PIN → unlocks real app
-- Power button 3x while in stealth = silent SOS
-
-#### Compose Components to Build
-
-- `RiskScoreCircle` — animated, color-changing, pulses if critical
-- `ExplainabilityCard` — list of reasons with leading icons
-- `SOSButton` — large red, haptic feedback, hold-to-confirm
-- `ContactCard` — for trusted circle
-- `RouteCard` — with static map thumbnail
-- `StatusBadge` — Safe/Moderate/High/Critical pill
-- `BottomNavBar` — Home / Routes / Circle / Settings
-
-#### Animation Library
-- Add `androidx.compose.animation:animation` (already in BOM)
-- Use `animateColorAsState`, `animateFloatAsState` for smooth transitions
-- Risk score circle: pulse animation when Critical
-- Score number: animated counter when value changes
+#### Animation
+- Use `animateColorAsState`, `animateFloatAsState`
+- Risk score circle: pulse when Critical
+- Score number: animated counter on change
 
 #### Demo Login Bypass
-
-In `MainActivity`:
 ```kotlin
-// HACKATHON DEMO BYPASS
-// TODO: Replace with real auth when backend ready
-val isLoggedIn = true  // hardcoded
+// MOCK: Replace with real auth when backend ready
+val isLoggedIn = true
 val demoUser = User(id = "demo_user", name = "Priya")
-
-if (!isLoggedIn) {
-    // Show login flow
-} else {
-    // Skip to HomeScreen
-}
 ```
-
-Store demo user in DataStore so it persists across app restarts but feels like real login.
 
 #### Implementation Priority
 1. Splash + onboarding (visual hook)
-2. Home screen with risk circle (the moneyshot for judges)
-3. SOS active screen (the dramatic moment)
-4. Routes + Circle screens (functional completeness)
-5. Stealth mode (wow factor if time permits)
+2. Home with risk circle (moneyshot for judges)
+3. Alert Active screen (dramatic moment)
+4. Routes + Circle (functional completeness)
+5. Stealth mode (wow factor)
 
-#### Pitch Line for Judges
-*"Every screen was designed to communicate trust at a glance — color tells you 
-the status before you read a word. The app feels safer just to look at."*
-
-### ✅ Step 1 — Foreground Service Architecture (DONE)
-Service runs, mock data updates every 2s, persistent notification, FOREGROUND_SERVICE permission set.
+---
 
 ### Step 2 — GPS Collection
 - ACCESS_FINE_LOCATION runtime request
@@ -202,10 +172,9 @@ Service runs, mock data updates every 2s, persistent notification, FOREGROUND_SE
 - Rolling window of 20 readings (~2s)
 - Fall detection: freefall (~0) → spike (>20) → 30s SOS countdown
 
-### Step 4 — Heart Rate from Galaxy Watch
-- Same package + app_id in both manifests
-- Watch: SensorManager TYPE_HEART_RATE
-- Watch → Phone: MessageClient path `/heart_rate`
+### Step 4 — Heart Rate from Watch (DataLayer Receiver Only)
+See "Watch App Scope" section below. Phone only RECEIVES from watch.
+- Listen on `/heart_rate` path
 - Spike: current HR > baseline + 30 BPM
 
 ### Step 5 — Microphone (dB only, NO recording)
@@ -215,12 +184,16 @@ Service runs, mock data updates every 2s, persistent notification, FOREGROUND_SE
 - Optional: yamnet.tflite for on-device classification
 - Do NOT use Gemini for audio
 
+### Step 6 — Gemini API (Explainability Only)
+- Only when score > 60
+- Input: risk factors object → Output: natural language reason
+- Display in HomeScreen explainability card
+- Free tier from Google AI Studio
 
+### Step 7 — Risk Score Computation
+Run formula above every 10s in service, push to `RiskRepository`.
 
-### Step 7 — Risk Score Computation (already in formula above)
-Run every 10s in service, push to `RiskRepository`.
-
-### Step 8 — Backend Communication
+### Step 8 — Backend Communication (when URL provided)
 - POST `/api/scores/update` every 10s
 - POST `/api/alerts/trigger` when score > 75
 - `alertAlreadyFired` flag, resets at score < 50
@@ -233,63 +206,188 @@ Run every 10s in service, push to `RiskRepository`.
 - Deviation: >300m outside corridor → risk bump
 - Demo: pre-seed 3 fake trips on install
 
-### Step 10 — BLE Follower Detection + Mesh Relay (Offline Lifeline)
+---
 
-This step combines 3 powerful BLE features:
+### Step 10 — BLE Follower Detection + Mesh Relay (Offline Lifeline)
 
 #### 10a — Follower Detection
 - Every 60s, scan 10s, collect MAC addresses
 - `Map<MAC, consecutiveScans>` in memory
 - Same MAC in 4+ scans AND user moved 300m+ → follower
-- Bump score +35, "Possible follower detected"
+- Bump score +35
 
 #### 10b — BLE SOS Broadcast (no connection needed)
-When network is dead, broadcast SOS as a BLE advertisement packet — any 
-nearby phone running SafeCircle can pick it up passively without pairing.
-
-- Use `BluetoothLeAdvertiser.startAdvertising()`
-- Pack into manufacturer data: `userId(8B) + lat(4B) + lng(4B) + timestamp(4B) + alertType(1B)`
-- Custom UUID for SafeCircle service: identifies our app's packets
-- Broadcast continuously while alert active (every 1s, ~100m range)
-- Privacy-safe: only userId hash + coords, no personal info
+When network is dead, broadcast SOS as BLE advertisement packet — any nearby phone running SafeCircle picks it up passively.
+- `BluetoothLeAdvertiser.startAdvertising()`
+- Manufacturer data: `userId(8B) + lat(4B) + lng(4B) + timestamp(4B) + alertType(1B)`
+- Custom UUID for SafeCircle service
+- Broadcast every 1s while active, ~100m range
 
 #### 10c — Passive BLE Listener (relay node)
 Every SafeCircle phone scans for SafeCircle UUID broadcasts.
-
-- When detected: parse payload → check if alert is fresh (timestamp < 5min)
-- If this phone has internet → upload alert to backend on behalf of sender
-- If not → re-broadcast (max 3 hops to prevent infinite relay)
-- Send haptic + notification: "Someone nearby needs help — alerting authorities"
-- This turns every SafeCircle user into a passive helper node
+- Detected → parse → check timestamp < 5min
+- Has internet → upload alert on behalf of sender
+- No internet → re-broadcast (max 3 hops)
+- Notify user: "Someone nearby needs help"
 
 #### 10d — Auto Hotspot Trigger (last resort)
-If alert is critical (score > 90) AND no internet AND no nearby SafeCircle device:
-- Programmatically enable mobile hotspot (requires WRITE_SETTINGS permission)
-- Hotspot SSID set to: `SAFECIRCLE_SOS_<userIdHash>`
-- Other SafeCircle phones detect this SSID via WifiManager scan
-- Connect briefly → exchange alert payload → disconnect
-- Note: Hotspot toggle requires reflection on some Android versions
-- Fallback: prompt user to enable manually via QuickSettings shortcut
+If score > 90 AND no internet AND no nearby SafeCircle device:
+- Enable hotspot programmatically (WRITE_SETTINGS)
+- SSID: `SAFECIRCLE_SOS_<userIdHash>`
+- Other phones detect SSID via WifiManager scan
+- Connect briefly → exchange payload → disconnect
 
-#### 10e — Combined Flow
+#### 10e — Combined Fallback Flow
 SOS triggered
-│
-▼
-Try cloud (Retrofit) ──── success → done
-│ fail
-▼
-BLE broadcast (10b) ──── nearby SafeCircle device receives → relays via internet
-│ no relay in 60s
-▼
-Auto hotspot (10d) ──── nearby device connects → relays
-│ no connect in 90s
-▼
-SMS fallback via SmsManager ──── always works on cellular
+↓
+Cloud (Retrofit) — success → done
+↓ fail
+BLE broadcast (10b) — nearby device receives → relays
+↓ no relay in 60s
+Auto hotspot (10d) — nearby connects → relays
+↓ no connect in 90s
+SMS via SmsManager — always works on cellular
+
+#### Permissions
+- `BLUETOOTH_SCAN`, `BLUETOOTH_ADVERTISE`, `BLUETOOTH_CONNECT` (Android 12+)
+- `ACCESS_FINE_LOCATION` (BLE scan needs it)
+- `WRITE_SETTINGS` (hotspot)
+- `CHANGE_WIFI_STATE`, `ACCESS_WIFI_STATE`
+
+---
+
 ### Step 11 — Map Integration (Critical for Demo Visual Impact)
 
-The map is the centerpiece of your demo. Judges need to *see* movement, danger zones, route deviations, and safe paths in real time.
-Add this section to your CLAUDE.md:
-markdown## Watch App Scope (Important Architectural Decision)
+The map is the centerpiece of your demo.
+
+#### Map Library
+- `com.google.maps.android:maps-compose`
+- Cleaner Compose integration than raw MapView
+
+#### API Keys
+- Google Maps SDK key from console.cloud.google.com
+- Enable: Maps SDK for Android, Geocoding API, Directions API
+- Add to `local.properties`: `MAPS_API_KEY=AIzaSy...`
+
+#### Map Layers (stacked on single map)
+
+**Layer 1: User Location (live)**
+- Blue pulsing dot at current GPS position
+- Updates every 5-10s as service pushes new location
+- Camera follows user (toggle to lock/unlock)
+- Trail behind: last 30s of path as fading polyline
+
+**Layer 2: Danger Heatmap**
+- Fetch on app open (when backend ready)
+- Render circles with alpha by severity
+- Yellow → orange → red
+- Toggle button to show/hide
+- Cache in Room — works offline
+
+**Layer 3: Saved Route Corridors**
+- Each route = polyline drawn on map
+- Multiple A→B routes = parallel lines, different colors
+- Tap polyline → highlights + shows "Home → College via Silk Board, 23 min avg"
+
+**Layer 4: Active Trip Path**
+- Solid bright line as user moves
+- Compared to saved corridors live
+- Outside by 300m+ → line turns RED + deviation marker drops
+- Dramatic demo moment
+
+**Layer 5: Alert Markers**
+- SOS fires → big pulsing red marker
+- Officer assigned → blue marker (mock for demo)
+- Animated approach line
+
+#### How Saved Routes Work
+
+**Concept:** Multiple paths between same A→B = corridors.
+
+**Storage (Room):**
+trip_sessions: sessionId, userId, startLat/Lng, endLat/Lng,
+startLabel, endLabel, durationMs, completedAt
+route_points: sessionId, lat, lng, timestamp, sequenceIndex
+
+**Clustering Logic:**
+- Two trips = "same route" if start within 200m AND end within 200m
+- Group all such trips → one corridor
+- Different mid-paths → multiple corridors between same A and B
+
+**Display:**
+- Loop through saved routes → draw `Polyline` for each
+- Toggle: "Show saved routes" on/off
+- Tap to focus: zooms to route bounds
+
+#### Real-Time GPS → Map Flow
+ForegroundService (every 5-10s)
+↓ new lat/lng
+Update RiskRepository
+├──► Push to Map Composable (recompose marker)
+├──► Save to Room (if trip active)
+└──► Check deviation against corridors
+↓ if deviating
+Mark isDeviatingRoute = true
+Polyline color → red
+Risk score +20
+
+#### Map Screen Components
+- `MapScreen` — top-level
+- `LiveLocationMarker` — pulsing dot
+- `DangerHeatmap` — overlay
+- `SavedRouteOverlay` — multiple polylines
+- `ActiveTripPath` — current journey
+- `AlertMarker` — for SOS pins
+- Bottom sheet: layer toggles + status
+
+#### Mock GPS Demo Setup (Hackathon Critical)
+
+**Two demo points in Bangalore:**
+```kotlin
+// In DemoConfig.kt or RiskForegroundService
+val DEMO_START = LatLng(12.9352, 77.6245)  // Koramangala 5th Block
+val DEMO_END   = LatLng(12.9180, 77.6350)  // HSR Layout Sector 1
+```
+
+**Mock movement logic:**
+- Service interpolates GPS points between START and END every 5s
+- ~30 points along route, smooth movement
+- Linear interpolation: `lat = startLat + (endLat - startLat) * progress`
+- Progress 0.0 → 1.0 over ~2.5 minutes
+- Push each point to RiskRepository as if real GPS
+
+**Demo Mode Toggle:**
+```kotlin
+object DemoConfig {
+    var isDemoMode = true
+    var demoSpeed = 1.0f
+}
+```
+
+When `isDemoMode = true`:
+- Skip real FusedLocationProviderClient
+- Use mock interpolator
+- Map shows movement Koramangala → HSR
+
+**Mid-route deviation injection:**
+- At progress = 0.5, jump 400m off path
+- Triggers route deviation detection live
+- Score visibly spikes
+- Reason "Route deviation" appears
+
+**Pre-seed saved routes:**
+```kotlin
+// MOCK: On first launch, insert 3 fake completed trips into Room
+// All Koramangala → HSR via different paths
+// Deviation detection has corridors to compare from day 1
+```
+
+**API endpoints — DO NOT WIRE YET**
+All backend calls remain commented/mocked locally until URLs provided.
+
+---
+
+## Watch App Scope (Important Architectural Decision)
 
 **The Wear OS watch app is a SEPARATE Android Studio project**, not a module in this one.
 
@@ -299,30 +397,29 @@ markdown## Watch App Scope (Important Architectural Decision)
 - Send paths to watch: `/risk_score`, `/alert_status`
 - `MessageClient.OnMessageReceivedListener` registered in ForegroundService
 - Parse incoming HR values, feed into risk score formula
-- Push current risk score to watch every 10s for glanceable display
+- Push current risk score to watch every 10s
 
 ### What This Project Does NOT Need
 - ❌ No Wear OS Gradle module
 - ❌ No watch UI code, no Compose for Wear OS
-- ❌ No watch sensor logic (HR monitoring, fall detection)
+- ❌ No watch sensor logic
 - ❌ No watch-side Room DB
 
-### Pairing Requirements (only for connectivity to work)
+### Pairing Requirements
 - Both apps MUST share same `applicationId` package name
 - Both apps MUST be signed with same debug/release key
 - Both apps declare matching `<meta-data>` for Wearable in manifest
-- Watch app installs through Wear OS pairing — handled outside this project
 
-### DataLayer Implementation in Phone Project
+### DataLayer Implementation in Phone
 
 In `RiskForegroundService`:
 ```kotlin
 Wearable.getMessageClient(this).addListener { messageEvent ->
     when (messageEvent.path) {
-        "/heart_rate" -> handleHrUpdate(messageEvent.data)
-        "/sos_trigger" -> triggerEmergencyAlert()
+        "/heart_rate"     -> handleHrUpdate(messageEvent.data)
+        "/sos_trigger"    -> triggerEmergencyAlert()
         "/shake_detected" -> elevateRiskScore()
-        "/fall_detected" -> startFallCountdown()
+        "/fall_detected"  -> startFallCountdown()
     }
 }
 ```
@@ -333,276 +430,190 @@ Wearable.getMessageClient(context)
     .sendMessage(nodeId, "/risk_score", scoreBytes)
 ```
 
-### Dependencies Needed (phone side only)
+### Dependency Needed (phone side)
 ```kotlin
 implementation("com.google.android.gms:play-services-wearable:18.1.0")
 ```
 
 ### Demo Note
-Watch app development happens in parallel by another teammate (or later by you).
-For demo, if watch app isn't ready: hardcode HR spike injection into mock GPS 
-sequence to simulate watch sending data — same effect for judges.
+Watch app built in parallel by teammate. If not ready for demo, hardcode HR spike injection into mock GPS sequence — same effect for judges.
 
-#### Map Library Choice
-- **Google Maps Compose** (`com.google.maps.android:maps-compose`)
-- Cleaner Compose integration than raw MapView
-- Free tier covers demo usage easily
-## Demo Script (memorize this flow)
+---
 
-1. Open app → map loads, blue dot at Koramangala (mock GPS)
-2. Show saved routes: "I usually go Home → College these 3 ways"
-3. Toggle danger heatmap → red zones appear from scraper data
-4. Mock movement starts → blue dot moves smoothly toward HSR
-5. At midpoint → inject deviation → polyline turns red → score spikes
-6. Show explainability card updating: "Route deviation + late hour"
-7. Score crosses 75 → SOS fires → red alert marker drops on map
-8. Switch to dashboard → alert card appears live via Socket.io
-9. (If watch demo) Shake watch → backup SOS trigger demonstrated
-10. Show offline mode: airplane mode → BLE broadcast simulation
+## What Phone Sends to Backend (Outbound — Build This Side Ready)
 
-#### Required API Keys
-- Google Maps SDK key (get from console.cloud.google.com)
-- Enable: Maps SDK for Android, Geocoding API, Directions API
-- Add to `local.properties`: `MAPS_API_KEY=AIzaSy...`
-- Reference in manifest via meta-data placeholder
+Phone is the **producer** — every sensor reading, alert, and trip becomes an outbound payload. Build all sender code ready, even though backend isn't deployed. When backend goes live, only `baseUrl` flips and everything works.
 
-#### Map Layers (stacked on single map)
-
-**Layer 1: User Location (live)**
-- Blue pulsing dot at current GPS position
-- Updates every 5-10s as service pushes new location
-- Camera follows user (with toggle to lock/unlock follow mode)
-- Trail behind user: last 30 seconds of path as fading polyline
-
-**Layer 2: Danger Heatmap (from backend scraper data)**
-- Fetch on app open: `GET /api/incidents/heatmap?city=bangalore`
-- Returns array of `{lat, lng, weight, area, count}`
-- Render using `Polygon` or custom `Circle` markers with alpha by severity
-- Color: yellow (mild) → orange → red (severe)
-- Toggle button: show/hide heatmap layer
-- Cache in Room — works offline after first fetch
-
-**Layer 3: Saved Route Corridors**
-- Each saved route = polyline drawn on map
-- Multiple routes between same A→B = multiple parallel lines (Google Maps style)
-- Color them differently: route 1 = blue, route 2 = purple, route 3 = teal
-- Width: 6dp, semi-transparent
-- Tap a polyline → highlights it + shows "Home → College via Silk Board, 23 min avg, 14 trips"
-
-**Layer 4: Active Trip Path (when traveling)**
-- Solid bright line drawn as user moves
-- Compared against saved corridors in real time
-- If outside corridor by 300m+ → line turns RED + deviation marker drops
-- This is your dramatic demo moment — judges see the line go red live
-
-**Layer 5: Alert Markers**
-- When SOS fires → big pulsing red marker at trigger point
-- Officer assigned → blue marker for officer position (mock for demo)
-- Animated line connecting them as officer "approaches"
-
-#### How Saved Routes Work (your specific question)
-
-**Concept:** Multiple paths between same origin-destination = corridors.
-
-**Storage:** Each completed trip = list of GPS points in Room.
-trip_sessions table:
-
-sessionId, userId, startLat, startLng, endLat, endLng,
-startLabel ("Home"), endLabel ("College"), durationMs, completedAt
-
-route_points table:
-
-sessionId, lat, lng, timestamp, sequenceIndex
-
-
-**Clustering Logic:**
-- Two trips = "same route" if start within 200m AND end within 200m
-- Group all such trips → that's a route corridor
-- 3+ trips with different mid-paths = 3 alternative routes between same A and B
-
-**Fetching for Display:**
-GET /api/routes/saved?userId=X
-→ Returns:
-[
+### Continuous Stream (every 5-10s during active trip)
+**POST /api/scores/update**
+```json
 {
-"routeId": "home_college_via_silk_board",
-"startLabel": "Home",
-"endLabel": "College",
-"tripCount": 14,
-"avgDurationMin": 23,
-"polyline": [{lat, lng}, ...] // simplified average path
-},
-{
-"routeId": "home_college_via_koramangala",
-"tripCount": 5,
-...
+  "userId": "demo_user",
+  "riskScore": 45,
+  "level": "MODERATE",
+  "lat": 12.9352,
+  "lng": 77.6245,
+  "speed": 8.2,
+  "reasons": ["Late hour", "Unfamiliar area"],
+  "timestamp": 1730384521000,
+  "isDeviatingRoute": false,
+  "followerDetected": false
 }
-]
-
-**Backend simplification (Douglas-Peucker):**
-- Don't return every GPS point — too heavy
-- Server simplifies polylines to ~50 points max per route
-- Phone gets lightweight payload, renders smooth lines
-
-**Display on Map:**
-- Loop through saved routes → for each, draw `Polyline` with that route's points
-- User toggle: "Show saved routes" on/off
-- Tap to focus: zooms to that route's bounds
-
-#### Real-Time GPS → Map Flow
-ForegroundService (every 5-10s)
-│ new lat/lng
-▼
-Update RiskRepository
-│
-├──► Push to Map Composable (Compose recomposes marker position)
-├──► Save to Room (RoutePoint if trip active)
-├──► Send to backend (POST /api/scores/update)
-└──► Check deviation against saved corridors
-│ if deviating
-▼
-Mark "isDeviatingRoute = true" in RiskData
-Polyline color flips to red
-Risk score bumps +20
-
-#### Map Screen Components
-
-- `MapScreen` Composable — top-level
-- `LiveLocationMarker` — pulsing dot
-- `DangerHeatmap` — overlay layer
-- `SavedRouteOverlay` — multiple polylines
-- `ActiveTripPath` — current journey line
-- `AlertMarker` — for SOS pins
-- Bottom sheet: toggles for each layer + status
-
-#### Direction API Usage (for "Safe Route Suggestion")
-
-When user enters destination → fetch routes:
-GET /api/safe-routes?from=lat,lng&to=lat,lng
-
-Backend calls Google Directions API with `alternatives=true`, gets 2-3 route options, scores each by:
-- Crime zone overlap (lower = safer)
-- Average risk score along path
-- Time of day adjustment
-
-Returns ranked routes — phone displays them as colored polylines:
-- Green polyline = safest route
-- Yellow = moderate
-- Red = avoid
-
-User taps "Use safe route" → activates navigation mode → real-time deviation tracking begins.
-
-#### Demo Script Using Map
-
-1. **Open app** → map loads, user dot shows
-2. **Saved routes appear** → "I usually go Home→College these 3 ways"
-3. **Heatmap toggle on** → red zones appear in known crime areas
-4. **Start moving** (simulated via mock GPS) → live dot moves smoothly
-5. **Deviate from path** → line turns red, score jumps, reason: "Route deviation"
-6. **Score crosses 75** → SOS fires, red marker drops, dashboard sees alert
-7. **Officer marker** appears, line of approach drawn
-
-This single demo moment communicates 5 features in 30 seconds.
-
-#### Permissions
-- `ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION` (already declared)
-- Network state for tile loading
-
-#### Mock GPS Demo Setup (Hackathon Critical)
-
-Backend endpoints not finalized yet — for demo, hardcode everything on phone.
-
-**Two demo points in Bangalore:**
-```kotlin
-// In RiskForegroundService or DemoConfig.kt
-val DEMO_START = LatLng(12.9352, 77.6245)  // Koramangala 5th Block
-val DEMO_END   = LatLng(12.9180, 77.6350)  // HSR Layout Sector 1
 ```
 
-**Mock movement logic:**
-- Service interpolates GPS points between START and END every 5s
-- Simulates smooth movement (~30 points along route)
-- Use linear interpolation: `lat = startLat + (endLat - startLat) * progress`
-- Progress increments 0.0 → 1.0 over ~2.5 minutes
-- Push each interpolated point to RiskRepository as if real GPS
+### Alert Trigger (score > 75)
+**POST /api/alerts/trigger**
+```json
+{
+  "userId": "demo_user",
+  "riskScore": 87,
+  "lat": 12.9210,
+  "lng": 77.6280,
+  "reasons": ["Route deviation", "HR spike", "Late hour"],
+  "alertType": "AUTO",
+  "timestamp": 1730384521000
+}
+```
 
-**Demo Mode Toggle:**
+### Trip Lifecycle (start + end)
+**POST /api/trips/start**
+```json
+{ "userId": "demo_user", "sessionId": "uuid", "startLat": ..., "startLng": ..., "startedAt": ... }
+```
+
+**POST /api/trips/end** (with full GPS trail)
+```json
+{
+  "userId": "demo_user",
+  "sessionId": "uuid",
+  "endLat": ..., "endLng": ...,
+  "durationMs": 150000,
+  "points": [{ "lat": ..., "lng": ..., "timestamp": ... }, ...]
+}
+```
+
+### Watch Events Forwarded (when watch fires)
+**POST /api/events/watch**
+```json
+{ "userId": "demo_user", "eventType": "SHAKE_SOS" | "FALL_DETECTED" | "HR_SPIKE", "value": 142, "timestamp": ... }
+```
+
+---
+
+## What Phone Receives from Backend (Inbound — Be Ready to Consume)
+
+These are different — phone listens but doesn't send. Build empty handlers now, wire later.
+
+### Polled / Fetched
+**GET /api/zone-danger?lat=X&lng=Y** — historical crime score for current location
+**GET /api/routes/saved?userId=X** — corridors learned across trips
+**GET /api/incidents/heatmap?city=bangalore** — heatmap layer data
+
+### Pushed (Socket.io or FCM)
+- `alertResponse` — officer assigned, ETA, status updates
+- `familyMessage` — trusted contact sent message
+- `safeRouteSuggestion` — backend suggests rerouting
+- `zoneAlert` — broadcast to all users in zone (e.g. "incident reported nearby")
+
+**Build receivers as no-op stubs that just log for now. When backend is ready, fill them in.**
+
+---
+
+## Hackathon Demo: Simulated Taxi Trip (Final Decided Approach)
+
+For the demo, we're **simulating a taxi-like trip** between two fixed Bangalore points. The phone fakes GPS, the React dashboard receives the same data live (via mocked Socket.io or polling), so judges see synchronized movement on both screens — phone shows the user's view, dashboard shows the police/family view.
+
+### Trip Definition
+- **Pickup:** Koramangala 5th Block — `(12.9352, 77.6245)`
+- **Drop:** HSR Layout Sector 1 — `(12.9180, 77.6350)`
+- **Duration:** ~2.5 minutes simulated (configurable demo speed)
+- **Vehicle profile:** Taxi/cab — speed varies 20-40 km/h, occasional stops
+
+### What Happens During the Simulated Trip
+
+| Time | Event | Phone Shows | Dashboard Shows |
+|---|---|---|---|
+| 0:00 | Trip starts | "On the way to HSR" | New live trip pin appears |
+| 0:30 | Normal driving | Score 25 (Safe) | Green pin moving smoothly |
+| 1:00 | Late hour factor kicks in | Score 45 (Moderate) | Pin turns amber |
+| 1:15 | Mock route deviation injected | Score jumps to 70 | Pin turns red, deviation alert |
+| 1:30 | Mock HR spike from "watch" | Score 85 (Critical) | Alert card pops on dashboard |
+| 1:45 | Auto SOS fires | Red overlay on phone | Alert assigned, officer marker |
+| 2:00 | (Demo) Officer responds | "Officer responding" banner | Officer marker moves toward pin |
+| 2:30 | Trip ends | Returns to home screen | Trip closed, logged in history |
+
+### Phone Side Implementation
+- `DemoTripSimulator` class interpolates GPS between pickup/drop
+- Each interpolated point flows through normal pipeline (RiskRepository → ViewModel → Map)
+- At specific progress points, inject events (deviation, HR spike, follower)
+- **Send same data to dashboard** via whatever channel teammate sets up (Socket.io / WebSocket / mocked endpoint)
+- Demo toggle in settings: "Start Demo Trip" button kicks it off
+
+### Dashboard Sync (teammate's responsibility, document the contract)
+- Dashboard subscribes to `userId = "demo_user"` socket room
+- Receives same `scoreUpdate` events phone produces
+- Live pin moves on dashboard map in sync with phone
+- Alerts appear simultaneously when triggered
+
+### Why This Demo Works
+- Single scripted flow → judges see all features in 2.5 min
+- Phone + dashboard side-by-side on screen → "complete ecosystem" shown live
+- Reproducible — works without WiFi, walking, real cab
+- Dramatic — score climbing visibly, polyline turning red, alert firing on dashboard
+
+### Demo Mode Toggle
 ```kotlin
 object DemoConfig {
-    var isDemoMode = true  // toggle in settings
-    var demoSpeed = 1.0f   // 1x = normal, 2x = faster demo
+    var isDemoMode = true                    // disables real GPS
+    var demoSpeed = 1.0f                     // 1x normal, 2x faster for short demo
+    var injectDeviationAt = 0.5f             // progress fraction
+    var injectHrSpikeAt = 0.7f
+    var injectFollowerAt = 0.3f
 }
 ```
 
-When `isDemoMode = true`:
-- Skip real FusedLocationProviderClient
-- Use mock interpolator instead
-- Map shows movement between Koramangala → HSR
+## Complete Permissions List
 
-**Mid-route deviation trigger (for dramatic demo):**
-- At progress = 0.5 (midpoint), inject deviation: jump 400m off path
-- This triggers route deviation detection live
-- Risk score visibly spikes on screen
-- Reason "Route deviation" appears in explainability card
+Already declared:
+- FOREGROUND_SERVICE_LOCATION, ACCESS_FINE_LOCATION, ACCESS_COARSE_LOCATION
+- POST_NOTIFICATIONS, FOREGROUND_SERVICE
 
-**Pre-seed saved routes for deviation comparison:**
-```kotlin
-// On app first launch, insert 3 fake completed trips into Room
-// All going Koramangala → HSR via slightly different paths
-// This way deviation detection has corridors to compare against from day 1
-```
+Add as needed per step:
+- BODY_SENSORS, ACTIVITY_RECOGNITION (HR + accelerometer)
+- BLUETOOTH_SCAN, BLUETOOTH_ADVERTISE, BLUETOOTH_CONNECT
+- RECORD_AUDIO (mic dB only)
+- CHANGE_WIFI_STATE, ACCESS_WIFI_STATE (hotspot scan)
+- WRITE_SETTINGS (hotspot trigger)
+- INTERNET, ACCESS_NETWORK_STATE
+- SEND_SMS (offline SMS fallback)
+- VIBRATE
 
-**API endpoints — DO NOT WIRE YET**
-All backend calls (`/api/scores/update`, `/api/alerts/trigger`, `/api/zone-danger`, 
-`/api/routes/save`) remain commented out / mocked locally. User will provide real 
-URLs and contracts later — only then restructure the network layer.
+---
 
-For now: everything runs offline on phone with mock data and pre-seeded routes.
-#### Permissions Required
-- `BLUETOOTH_SCAN`, `BLUETOOTH_ADVERTISE`, `BLUETOOTH_CONNECT` (Android 12+)
-- `ACCESS_FINE_LOCATION` (BLE scan needs it)
-- `WRITE_SETTINGS` (for hotspot)
-- `CHANGE_WIFI_STATE`, `ACCESS_WIFI_STATE` (for SSID scan)
+## Demo Script (memorize this flow)
 
-#### Demo Pitch Line
-*"Even if every network fails, your phone broadcasts SOS via Bluetooth to nearby 
-SafeCircle users — turning every app user into a relay node. Worst case, the 
-phone auto-enables a hotspot named SAFECIRCLE_SOS that other devices detect."*
+1. Open app → splash → bypass login → home loads with map at Koramangala
+2. Show saved routes: "I usually go Home → College these 3 ways"
+3. Toggle danger heatmap → red zones appear
+4. Mock movement starts → blue dot moves smoothly toward HSR
+5. At midpoint → inject deviation → polyline turns red → score spikes
+6. Explainability card updates: "Route deviation + late hour"
+7. Score crosses 75 → SOS fires → red alert marker drops on map
+8. (If watch ready) Shake watch → backup SOS demonstrated
+9. Show offline mode: airplane mode → BLE broadcast simulation
+10. Switch to dashboard (teammate's screen) → alert appears live
 
-### Watch Module (Wear OS XML, separate Gradle module)
-- W1: New Module → Wear OS in same project
-- W2: BoxInsetLayout root
-- W3: Screens — Main (score+HR), SOS confirm, Alert status
-- W4: 3 shakes in 2s = SOS via DataLayer
-- W5: Vibrator: short-short-long = danger
-- W6: Phone↔Watch via MessageClient (`/risk_score`, `/heart_rate`)
+---
 
-## Backend Integration
+## Judge Pitch Lines (use in pitch + UI copy)
 
-### Status
-Teammate building Node.js + MongoDB Atlas. NOT ready yet. Use mock data until URL provided.
+- **Opening:** "SafeCircle doesn't wait for a woman to press SOS. It predicts danger before it happens."
+- **Intelligence:** "Risk score combines live sensor fusion, time context, and real scraped Bangalore crime data."
+- **Wear OS:** "If the phone is snatched, the watch keeps running."
+- **Offline:** "Three fallback layers: cloud sync, peer mesh relay, SMS."
+- **Closing:** "Phone, watch, command center — real data, real intelligence, real fallbacks."
 
-### Backend URL
-TBD — update here once deployed.
-
-
-
-
-### Auth
-JWT Bearer token via POST `/api/auth/login`. Add interceptor in `ApiClient.kt`.
-
-### When Backend Ready
-User will say: "Backend is ready, URL: xxx, here are contract changes". Then:
-1. Update `ApiClient.kt` baseUrl
-2. Restructure `ApiService.kt` endpoints
-3. Replace mock calls with real Retrofit
-4. Add JWT interceptor
-5. Test
-## Permissions Declared
-
-`FOREGROUND_SERVICE_LOCATION`, `ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION`, `POST_NOTIFICATIONS`, `FOREGROUND_SERVICE`.
-
-Add when needed: `BODY_SENSORS`, `ACTIVITY_RECOGNITION`, `BLUETOOTH_SCAN`, `BLUETOOTH_CONNECT`, `RECORD_AUDIO`, `INTERNET`.
+---
 
 ## Key Libraries
 
@@ -614,7 +625,9 @@ Add when needed: `BODY_SENSORS`, `ACTIVITY_RECOGNITION`, `BLUETOOTH_SCAN`, `BLUE
 | Room | 2.6.1 | Local DB (KSP) |
 | KSP | 2.0.21-1.0.25 | Annotation processing |
 
-To be added: Retrofit, OkHttp, Play Services Location, Play Services Wearable, WorkManager.
+To add: Retrofit, OkHttp, Play Services Location, Play Services Wearable, Maps Compose, WorkManager.
+
+---
 
 ## Current Implementation State
 
@@ -623,7 +636,11 @@ To be added: Retrofit, OkHttp, Play Services Location, Play Services Wearable, W
 - ⏳ Room schema (`RoutePoint`) defined but not wired
 - ⏳ No GPS, accelerometer, BLE, mic, watch sync yet
 - ⏳ No network client integrated
-- ⏳ Watch module not created
+- ⏳ Map screen not built
+- ⏳ Login/onboarding screens not built
+- ⏳ Watch DataLayer receiver not added
+
+---
 
 ## Dependency Management
 
