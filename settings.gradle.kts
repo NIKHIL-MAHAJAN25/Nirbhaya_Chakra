@@ -24,3 +24,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "Nirbhaya_Chakra"
 include(":app")
+include(":wear")
