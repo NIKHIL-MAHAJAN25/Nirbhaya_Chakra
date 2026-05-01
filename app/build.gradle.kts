@@ -19,12 +19,18 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        val apiKey = project.findProperty("GOOGLE_API_KEY") as String?
+        buildConfigField("String", "GOOGLE_API_KEY", "\"$apiKey\"")
+
+        manifestPlaceholders["GOOGLE_API_KEY"] = apiKey ?: ""
     }
     kotlinOptions {
         jvmTarget = "11"
     }
     buildFeatures {
         compose = true
+        buildConfig = true
+
     }
 
 
@@ -59,6 +65,7 @@ dependencies {
     // -------------------
 
     implementation(platform(libs.androidx.compose.bom))
+    implementation("com.google.maps.android:maps-compose:4.3.0")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
 
 
