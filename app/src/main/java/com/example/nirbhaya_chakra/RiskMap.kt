@@ -14,12 +14,13 @@ import com.google.maps.android.compose.*
 import androidx.compose.runtime.collectAsState
 
 @Composable
-fun RiskMap(
+ fun RiskMap(
     currentPosition: LatLng,
     tripState: TripState,
+    isDeviating: Boolean = false,    // ← add this
     hotspots: List<HotspotLocation> = emptyList(),
     modifier: Modifier = Modifier
-) {
+){
     // Camera follows user
     val cameraPositionState = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(currentPosition, 16f)
@@ -88,7 +89,7 @@ fun RiskMap(
         if (tripState.trailPoints.isNotEmpty()) {
             val lastPoint = tripState.trailPoints.last()
             val riskData = RiskRepository.riskData.collectAsState().value
-            if (riskData?.isDeviatingRoute == true) {
+            if (isDeviating) {
                 Marker(
                     state = MarkerState(position = lastPoint),
                     title = "DEVIATION",

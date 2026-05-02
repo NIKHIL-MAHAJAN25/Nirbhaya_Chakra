@@ -5,14 +5,12 @@ import com.example.nirbhaya_chakra.Data.HotspotLocation
 
 object HotspotRepository {
 
+    var cachedHotspots: List<HotspotLocation> = emptyList()
+
     suspend fun fetchHotspots(): List<HotspotLocation> {
-        return try {
-            val response = RetrofitClient.api.getHotspots()
-            Log.d("APP_DEBUG/API", "🔥 Hotspots fetched: ${response.size}")
-            response
-        } catch (e: Exception) {
-            Log.e("APP_DEBUG/API", "💥 Error: ${e.message}", e)
-            emptyList()
-        }
+        val data = RetrofitClient.api.getHotspots()
+        cachedHotspots = data
+        return data
+
     }
 }

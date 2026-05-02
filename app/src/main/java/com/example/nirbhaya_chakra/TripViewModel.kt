@@ -1,10 +1,12 @@
 package com.example.nirbhaya_chakra
 
+import android.location.Location
+import android.os.Build
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.nirbhaya_chakra.Data.MapMode
 import com.example.nirbhaya_chakra.Data.RiskData
-import com.example.nirbhaya_chakra.PresetRoutes
+import com.example.nirbhaya_chakra.Data.RiskLevel
 import com.example.nirbhaya_chakra.Data.TripState
 import com.google.android.gms.maps.model.LatLng
 import kotlinx.coroutines.Job
@@ -18,15 +20,23 @@ class TripViewModel : ViewModel() {
     private val _tripState = MutableStateFlow(TripState())
     val tripState: StateFlow<TripState> = _tripState
 
-    // Current animated position (smooth interpolated)
     private val _currentPosition = MutableStateFlow(LatLng(12.9352, 77.6245))
     val currentPosition: StateFlow<LatLng> = _currentPosition
 
     private var tripJob: Job? = null
 
-    // ──── Start a preset trip ────
+    // Throttle + hotspot cache
+    private var lastRiskUpdateTime = 0L
+    private var lastHotspotCenter: LatLng? = null
+    private var cachedHotspotScore = 0
+
+    // ─── START TRIP ───
     fun startTrip(destinationName: String) {
+        tripJob?.cancel()
         val route = PresetRoutes.destinations[destinationName] ?: return
+
+        // Seed initial RiskData so null crashes never happen
+        seedInitialRiskData(route.first())
 
         _tripState.value = TripState(
             mode = MapMode.TRIP,
@@ -38,112 +48,194 @@ class TripViewModel : ViewModel() {
             isActive = true
         )
 
-        // Animate through waypoints
         tripJob = viewModelScope.launch {
             for (i in 0 until route.size - 1) {
                 val from = route[i]
                 val to = route[i + 1]
-                val steps = 20  // sub-steps between waypoints for smoothness
-                val stepDelay = 150L  // ms between each sub-step
+                val steps = 20
+                val stepDelay = 300L
 
                 for (step in 0..steps) {
                     val fraction = step.toFloat() / steps
-                    val lat = from.latitude + (to.latitude - from.latitude) * fraction
-                    val lng = from.longitude + (to.longitude - from.longitude) * fraction
-                    val pos = LatLng(lat, lng)
+                    val pos = LatLng(
+                        from.latitude + (to.latitude - from.latitude) * fraction,
+                        from.longitude + (to.longitude - from.longitude) * fraction
+                    )
 
                     _currentPosition.value = pos
-
-                    // Add to trail
                     val currentState = _tripState.value
                     _tripState.value = currentState.copy(
                         trailPoints = currentState.trailPoints + pos,
                         progress = (i.toFloat() + fraction) / (route.size - 1)
                     )
 
-                    // Update RiskRepository with new position
-                    updateRiskWithPosition(pos, currentState.progress)
-
+                    updateRiskWithPosition(pos)
                     delay(stepDelay)
                 }
             }
-
-            // Trip complete
             _tripState.value = _tripState.value.copy(isActive = false, progress = 1f)
         }
     }
 
-    // ──── Free mode — just tracks position ────
+    // ─── FREE MODE ───
     fun startFreeMode() {
+        tripJob?.cancel()
+        seedInitialRiskData(_currentPosition.value)
+
         _tripState.value = TripState(
             mode = MapMode.FREE,
             isActive = true,
             trailPoints = listOf(_currentPosition.value)
         )
 
-        // MOCK: Wander randomly around Koramangala
         tripJob = viewModelScope.launch {
             var lat = 12.9352
             var lng = 77.6245
             while (_tripState.value.isActive) {
-                // Small random movement
                 lat += (-0.0003..0.0003).random()
                 lng += (-0.0003..0.0003).random()
                 val pos = LatLng(lat, lng)
-
                 _currentPosition.value = pos
                 _tripState.value = _tripState.value.copy(
                     trailPoints = _tripState.value.trailPoints + pos
                 )
-
-                updateRiskWithPosition(pos, 0f)
+                updateRiskWithPosition(pos)
                 delay(3000)
             }
         }
     }
 
-    // ──── Stop any active trip ────
+    // ─── STOP ───
     fun stopTrip() {
         tripJob?.cancel()
         _tripState.value = _tripState.value.copy(isActive = false)
     }
 
-    // ──── Inject deviation (demo button) ────
+    // ─── INJECT DEVIATION (demo button) ───
     fun injectDeviation() {
-        _currentPosition.value = PresetRoutes.DEVIATION_POINT
+        tripJob?.cancel()
+        val deviation = PresetRoutes.DEVIATION_POINT
+        _currentPosition.value = deviation
         _tripState.value = _tripState.value.copy(
-            trailPoints = _tripState.value.trailPoints + PresetRoutes.DEVIATION_POINT
+            trailPoints = _tripState.value.trailPoints + deviation
         )
-        // This will cause risk score to spike via deviation detection
         val current = RiskRepository.riskData.value ?: return
         RiskRepository.updateRiskData(
             current.copy(
-                riskScore = (current.riskScore + 25).coerceAtMost(100),
+                lat = deviation.latitude,
+                lng = deviation.longitude,
+                riskScore = 85,
+                level = RiskLevel.CRITICAL,
                 isDeviatingRoute = true,
-                reasons = current.reasons + "Route deviation detected (380m off path)"
+                reasons = listOf(
+                    "Route deviation detected (380m off path)",
+                    "Entering unfamiliar area",
+                    "Late hour risk"
+                )
             )
         )
     }
 
-    private fun updateRiskWithPosition(pos: LatLng, progress: Float) {
-        val current = RiskRepository.riskData.value ?: RiskData(
-            riskScore = 20,
-            level = 20.toRiskLevel(),
-            reasons = listOf("Trip started"),
-            lat = pos.latitude,
-            lng = pos.longitude,
-            isDeviatingRoute = false,
-            followerDetected = false
+    // ─── SEED INITIAL DATA (prevents null crashes) ───
+    private fun seedInitialRiskData(pos: LatLng) {
+        if (RiskRepository.riskData.value != null) return
+        RiskRepository.updateRiskData(
+            RiskData(
+                riskScore = 20,
+                level = RiskLevel.SAFE,
+                reasons = listOf("Monitoring active"),
+                lat = pos.latitude,
+                lng = pos.longitude,
+                isDeviatingRoute = false,
+                followerDetected = false
+            )
         )
+    }
+
+    // ─── CORE RISK ENGINE ───
+    private fun updateRiskWithPosition(pos: LatLng) {
+        if (!shouldUpdateRisk()) return
+
+        val current = RiskRepository.riskData.value ?: return
+
+        // Time risk — works on all API levels
+        val hour = java.util.Calendar.getInstance()
+            .get(java.util.Calendar.HOUR_OF_DAY)
+
+        val hotspotScore = getNearbyHotspotScore(pos)
+        val timeRisk = getTimeRisk(hour)
+
+        var finalRisk = hotspotScore * 0.5 + timeRisk
+        if (current.isDeviatingRoute) finalRisk += 25
+        if (current.followerDetected) finalRisk += 20
+
+        val riskInt = finalRisk.toInt().coerceIn(0, 100)
+
+        // Build dynamic reasons list
+        val reasons = mutableListOf<String>()
+        if (timeRisk >= 20) reasons.add("Late hour (${hour}:00)")
+        if (hotspotScore > 50) reasons.add("Near danger zone (score: $hotspotScore)")
+        if (current.isDeviatingRoute) reasons.add("Route deviation active")
+        if (current.followerDetected) reasons.add("Possible follower detected")
+        if (reasons.isEmpty()) reasons.add("All clear — monitoring active")
+
         RiskRepository.updateRiskData(
             current.copy(
                 lat = pos.latitude,
-                lng = pos.longitude
+                lng = pos.longitude,
+                riskScore = riskInt,
+                level = riskInt.toRiskLevel(),
+                reasons = reasons
             )
         )
     }
 
-    private fun ClosedRange<Double>.random(): Double {
-        return start + Math.random() * (endInclusive - start)
+    // ─── THROTTLE — max one risk update every 5s ───
+    private fun shouldUpdateRisk(): Boolean {
+        val now = System.currentTimeMillis()
+        if (now - lastRiskUpdateTime < 5000) return false
+        lastRiskUpdateTime = now
+        return true
     }
+
+    // ─── HOTSPOT PROXIMITY ───
+    private fun getNearbyHotspotScore(pos: LatLng): Int {
+        val radiusMeters = 200f
+        lastHotspotCenter?.let { center ->
+            if (distanceBetween(pos, center) < radiusMeters) {
+                return cachedHotspotScore
+            }
+        }
+        val hotspots = HotspotRepository.cachedHotspots
+        val nearest = hotspots.minByOrNull {
+            distanceBetween(pos, LatLng(it.lat, it.lng))
+        }
+        return if (nearest != null) {
+            lastHotspotCenter = LatLng(nearest.lat, nearest.lng)
+            cachedHotspotScore = nearest.score
+            nearest.score
+        } else 20
+    }
+
+    // ─── DISTANCE ───
+    private fun distanceBetween(a: LatLng, b: LatLng): Float {
+        val result = FloatArray(1)
+        Location.distanceBetween(
+            a.latitude, a.longitude,
+            b.latitude, b.longitude,
+            result
+        )
+        return result[0]
+    }
+
+    // ─── TIME RISK ───
+    private fun getTimeRisk(hour: Int): Int = when (hour) {
+        in 0..5   -> 30
+        in 20..23 -> 20
+        in 12..16 -> 10
+        else      -> 5
+    }
+
+    private fun ClosedRange<Double>.random(): Double =
+        start + Math.random() * (endInclusive - start)
 }

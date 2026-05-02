@@ -11,8 +11,15 @@ import androidx.core.app.NotificationCompat
 import com.example.nirbhaya_chakra.Data.LocationRequest
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.sample
 
 class RiskForegroundService : Service() {
+
+    companion object {
+        const val ACTION_STOP_SERVICE = "STOP_RISK_SERVICE"
+    }
 
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
@@ -20,35 +27,57 @@ class RiskForegroundService : Service() {
         super.onCreate()
         Log.d("APP_DEBUG/SERVICE", "Service Started")
         startForegroundNow()
+        BleSOSBroadcaster.startListening(this) { lat, lng ->
+            Log.d("BLE_RELAY", "Someone nearby needs help at $lat, $lng")
+            // Relay to backend on their behalf
+            scope.launch {
+                try {
+                    RetrofitClient.api.sendLocation(
+                        LocationRequest(lat = lat, lng = lng, riskScore = 100)
+                    )
+                    Log.d("BLE_RELAY", "Relayed SOS to server")
+                } catch (e: Exception) {
+                    Log.e("BLE_RELAY", "Relay failed: ${e.message}")
+                }
+            }
+        }
 
         // Observe RiskRepository — whenever TripViewModel updates it,
         // service sends to backend
         scope.launch {
-            RiskRepository.riskData.collectLatest { data ->
-                data ?: return@collectLatest
+            RiskRepository.riskData
+                .debounce(5000) // 🔥 send every 5 sec max
+                .distinctUntilChanged() // 🔥 avoid duplicate spam
+                .collectLatest { data ->
+                    data ?: return@collectLatest
+                    try {
+                        Log.d("APP_DEBUG/API", "📡 Sending: ${data.lat}, ${data.lng}")
 
-                Log.d("APP_DEBUG/SERVICE", "Score: ${data.riskScore} | Lat: ${data.lat}")
-
-                // Send to backend (fails silently if offline)
-                try {
-                    val response = RetrofitClient.api.sendLocation(
-                        LocationRequest(
-                            lat = data.lat,
-                            lng = data.lng,
-                            riskScore = data.riskScore
+                        val response = RetrofitClient.api.sendLocation(
+                            LocationRequest(
+                                lat = data.lat,
+                                lng = data.lng,
+                                riskScore = data.riskScore
+                            )
                         )
-                    )
-                    if (response.isSuccessful) {
-                        Log.d("APP_DEBUG/API", "Sent to server")
-                    } else {
-                        Log.e("APP_DEBUG/API", "Failed: ${response.code()}")
+
+                        Log.d("APP_DEBUG/API", "✅ Success: ${response.code()}")
+
+                    } catch (e: Exception) {
+                        Log.e("APP_DEBUG/API", "❌ API FAILED", e)
                     }
-                } catch (e: Exception) {
-                    // TODO: Queue in Room for offline retry
-                    Log.e("APP_DEBUG/API", "Offline: ${e.message}")
                 }
-            }
         }
+    }
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (intent?.action == ACTION_STOP_SERVICE) {
+            stopForeground(true)
+            stopSelf()
+            return START_NOT_STICKY
+        }
+
+        return START_STICKY
     }
 
     private fun startForegroundNow() {
